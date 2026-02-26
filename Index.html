@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SStwendRT</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #0d0d0d;
+      color: #e0e0e0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 30px 20px 20px;
+      text-align: center;
+      border-bottom: 1px solid #333;
+      background: #111;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 3.1rem;
+      font-weight: 900;
+      letter-spacing: 6px;
+      color: #ffffff;
+      text-shadow: 0 0 20px rgba(255,255,255,0.15);
+    }
+
+    .container {
+      flex: 1;
+      padding: 30px 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .form-box {
+      background: #111;
+      border: 1px solid #444;
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+
+    input, button {
+      padding: 12px 16px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #555;
+      background: #1a1a1a;
+      color: white;
+    }
+
+    input::placeholder {
+      color: #888;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .form-row input {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    button {
+      background: #2a2a2a;
+      border-color: #555;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    button:hover {
+      background: #383838;
+      border-color: #777;
+    }
+
+    .search-box {
+      margin: 30px 0 20px;
+      text-align: center;
+    }
+
+    #search {
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+      display: block;
+    }
+
+    .accounts-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: #111;
+      border: 1px solid #444;
+      border-radius: 10px;
+      padding: 18px;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover {
+      border-color: #777;
+    }
+
+    .card .nick {
+      font-size: 1.4rem;
+      font-weight: bold;
+      margin: 0 0 8px;
+      color: #ffffff;
+    }
+
+    .card .pass {
+      color: #ff5555;
+      font-family: monospace;
+      margin: 4px 0 12px;
+      word-break: break-all;
+    }
+
+    .tags {
+      margin-top: 12px;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+
+    .tag {
+      background: #222;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-right: 6px;
+      margin-bottom: 6px;
+      display: inline-block;
+    }
+
+    .footer-notice {
+      text-align: center;
+      padding: 40px 20px;
+      color: #555;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>SStwendRT</h1>
+</header>
+
+<div class="container">
+
+  <div class="form-box">
+    <div class="form-row">
+      <input type="text" id="nickname" placeholder="Ник / логин" />
+      <input type="text" id="password" placeholder="Пароль" />
+    </div>
+    <div class="form-row">
+      <input type="text" id="tags" placeholder="Теги через запятую (vk, steam, 2024, ...)" />
+      <button onclick="addAccount()">Добавить</button>
+    </div>
+  </div>
+
+  <div class="search-box">
+    <input type="text" id="search" placeholder="Поиск по нику или тегу..." oninput="filterAccounts()">
+  </div>
+
+  <div class="accounts-list" id="accountsList"></div>
+
+</div>
+
+<div class="footer-notice">
+  Данные хранятся только в браузере (localStorage)
+</div>
+
+<script>
+let accounts = JSON.parse(localStorage.getItem("sstwendrt_accounts") || "[]");
+
+function renderAccounts() {
+  const container = document.getElementById("accountsList");
+  container.innerHTML = "";
+
+  accounts.forEach((acc, index) => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.innerHTML = `
+      <div class="nick">${escapeHTML(acc.nick)}</div>
+      <div class="pass">${escapeHTML(acc.pass)}</div>
+      <div class="tags">
+        \( {acc.tags.map(t => `<span class="tag"> \){escapeHTML(t.trim())}</span>`).join("")}
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+function addAccount() {
+  const nick = document.getElementById("nickname").value.trim();
+  const pass = document.getElementById("password").value.trim();
+  const tagsStr = document.getElementById("tags").value;
+
+  if (!nick || !pass) {
+    alert("Ник и пароль обязательны");
+    return;
+  }
+
+  const tags = tagsStr
+    .split(",")
+    .map(t => t.trim())
+    .filter(t => t.length > 0);
+
+  accounts.push({ nick, pass, tags });
+
+  localStorage.setItem("sstwendrt_accounts", JSON.stringify(accounts));
+
+  document.getElementById("nickname").value = "";
+  document.getElementById("password").value = "";
+  document.getElementById("tags").value = "";
+
+  renderAccounts();
+  filterAccounts(); // обновляем фильтр
+}
+
+function filterAccounts() {
+  const query = document.getElementById("search").value.toLowerCase().trim();
+
+  const cards = document.querySelectorAll(".card");
+
+  cards.forEach(card => {
+    const nick = card.querySelector(".nick").textContent.toLowerCase();
+    const tags = Array.from(card.querySelectorAll(".tag")).map(t => t.textContent.toLowerCase());
+
+    const match =
+      nick.includes(query) ||
+      tags.some(tag => tag.includes(query));
+
+    card.style.display = match ? "" : "none";
+  });
+}
+
+function escapeHTML(str) {
+  return str.replace(/[&<>"']/g, m => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[m]);
+}
+
+// загрузка при старте
+renderAccounts();
+</script>
+
+</body>
+</html>

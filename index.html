@@ -58,9 +58,7 @@
       color: white;
     }
 
-    input::placeholder {
-      color: #888;
-    }
+    input::placeholder { color: #888; }
 
     .form-row {
       display: flex;
@@ -69,10 +67,7 @@
       flex-wrap: wrap;
     }
 
-    .form-row input {
-      flex: 1;
-      min-width: 180px;
-    }
+    .form-row input { flex: 1; min-width: 180px; }
 
     button {
       background: #2a2a2a;
@@ -81,10 +76,7 @@
       transition: all 0.15s;
     }
 
-    button:hover {
-      background: #383838;
-      border-color: #777;
-    }
+    button:hover { background: #383838; border-color: #777; }
 
     .search-box {
       margin: 30px 0 20px;
@@ -109,12 +101,11 @@
       border: 1px solid #444;
       border-radius: 10px;
       padding: 18px;
+      position: relative;
       transition: border-color 0.2s;
     }
 
-    .card:hover {
-      border-color: #777;
-    }
+    .card:hover { border-color: #777; }
 
     .card .nick {
       font-size: 1.4rem;
@@ -144,6 +135,54 @@
       margin-bottom: 6px;
       display: inline-block;
     }
+
+    .edit-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: #004d99;
+      border: none;
+      color: white;
+      font-size: 1rem;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      line-height: 32px;
+      text-align: center;
+    }
+
+    .edit-btn:hover { background: #0066cc; }
+
+    /* Модальное окно */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: #111;
+      border: 1px solid #555;
+      border-radius: 12px;
+      padding: 28px;
+      width: 90%;
+      max-width: 520px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.7);
+    }
+
+    .close {
+      float: right;
+      font-size: 1.8rem;
+      cursor: pointer;
+      color: #888;
+    }
+
+    .close:hover { color: #fff; }
 
     .footer-notice {
       text-align: center;
@@ -180,6 +219,30 @@
 
 </div>
 
+<!-- Модальное окно редактирования -->
+<div id="editModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h2 style="margin-top:0;">Редактировать запись</h2>
+    
+    <input type="hidden" id="editIndex" />
+    
+    <div class="form-row">
+      <input type="text" id="editNick" placeholder="Ник / логин" />
+    </div>
+    <div class="form-row">
+      <input type="text" id="editPass" placeholder="Пароль" />
+    </div>
+    <div class="form-row">
+      <input type="text" id="editTags" placeholder="Теги через запятую" />
+    </div>
+    
+    <div style="text-align:right; margin-top:20px;">
+      <button onclick="saveEdit()">Сохранить изменения</button>
+    </div>
+  </div>
+</div>
+
 <div class="footer-notice">
   Данные хранятся только в браузере (localStorage)
 </div>
@@ -195,16 +258,19 @@ function renderAccounts() {
     const card = document.createElement("div");
     card.className = "card";
 
+    const tagsHtml = acc.tags.map(t => `<span class="tag">${escapeHTML(t.trim())}</span>`).join("");
+
     card.innerHTML = `
+      <button class="edit-btn" onclick="openEditModal(${index})">✎</button>
       <div class="nick">${escapeHTML(acc.nick)}</div>
       <div class="pass">${escapeHTML(acc.pass)}</div>
-      <div class="tags">
-        \( {acc.tags.map(t => `<span class="tag"> \){escapeHTML(t.trim())}</span>`).join("")}
-      </div>
+      <div class="tags">${tagsHtml}</div>
     `;
 
     container.appendChild(card);
   });
+
+  filterAccounts(); // сразу применяем текущий поиск
 }
 
 function addAccount() {
@@ -226,43 +292,78 @@ function addAccount() {
 
   localStorage.setItem("sstwendrt_accounts", JSON.stringify(accounts));
 
+  // Очистка формы
   document.getElementById("nickname").value = "";
   document.getElementById("password").value = "";
   document.getElementById("tags").value = "";
 
   renderAccounts();
-  filterAccounts(); // обновляем фильтр
+}
+
+function openEditModal(index) {
+  const acc = accounts[index];
+  document.getElementById("editIndex").value = index;
+  document.getElementById("editNick").value = acc.nick;
+  document.getElementById("editPass").value = acc.pass;
+  document.getElementById("editTags").value = acc.tags.join(", ");
+
+  document.getElementById("editModal").style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById("editModal").style.display = "none";
+}
+
+function saveEdit() {
+  const index = parseInt(document.getElementById("editIndex").value);
+  const nick = document.getElementById("editNick").value.trim();
+  const pass = document.getElementById("editPass").value.trim();
+  const tagsStr = document.getElementById("editTags").value;
+
+  if (!nick || !pass) {
+    alert("Ник и пароль обязательны");
+    return;
+  }
+
+  const tags = tagsStr
+    .split(",")
+    .map(t => t.trim())
+    .filter(t => t.length > 0);
+
+  accounts[index] = { nick, pass, tags };
+  localStorage.setItem("sstwendrt_accounts", JSON.stringify(accounts));
+
+  closeModal();
+  renderAccounts();
 }
 
 function filterAccounts() {
   const query = document.getElementById("search").value.toLowerCase().trim();
-
   const cards = document.querySelectorAll(".card");
 
   cards.forEach(card => {
     const nick = card.querySelector(".nick").textContent.toLowerCase();
     const tags = Array.from(card.querySelectorAll(".tag")).map(t => t.textContent.toLowerCase());
 
-    const match =
-      nick.includes(query) ||
-      tags.some(tag => tag.includes(query));
-
+    const match = nick.includes(query) || tags.some(tag => tag.includes(query));
     card.style.display = match ? "" : "none";
   });
 }
 
 function escapeHTML(str) {
-  return str.replace(/[&<>"']/g, m => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  })[m]);
+  return str.replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[m]);
 }
 
-// загрузка при старте
+// Инициализация
 renderAccounts();
+
+// Закрытие модалки по клику вне окна
+window.onclick = function(event) {
+  const modal = document.getElementById("editModal");
+  if (event.target === modal) {
+    closeModal();
+  }
+};
 </script>
 
 </body>
